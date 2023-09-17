@@ -18,6 +18,21 @@ db.init_app(app)
 
 api = Api(app)
 
+@app.before_request
+def is_member_only():
+
+    print("begining", request.endpoint) 
+
+    if not session.get('user_id') \
+        and request.endpoint != "login":
+        return {'error': "Unauthorizd"}, 401
+    elif request.endpoint != "member_index" \
+        and request.endpoint != "member_article"\
+        and request.endpoint != "login" \
+        and request.endpoint != "logout":
+        print("if session", request.endpoint)
+        return {'error': "Unauthorizd"}, 401
+       
 class ClearSession(Resource):
 
     def delete(self):
@@ -85,14 +100,16 @@ class CheckSession(Resource):
         return {}, 401
 
 class MemberOnlyIndex(Resource):
-    
-    def get(self):
-        pass
+    def get(self):    
+        articles = [article.to_dict() for article in Article.query.all() if article.is_member_only == True]
+        
+        return make_response((articles), 200)
 
 class MemberOnlyArticle(Resource):
-    
-    def get(self, id):
-        pass
+    def get(self,id):
+            article = Article.query.filter(Article.id == id).first()
+            article_json = article.to_dict()
+            return article_json, 200
 
 api.add_resource(ClearSession, '/clear', endpoint='clear')
 api.add_resource(IndexArticle, '/articles', endpoint='article_list')
@@ -102,7 +119,6 @@ api.add_resource(Logout, '/logout', endpoint='logout')
 api.add_resource(CheckSession, '/check_session', endpoint='check_session')
 api.add_resource(MemberOnlyIndex, '/members_only_articles', endpoint='member_index')
 api.add_resource(MemberOnlyArticle, '/members_only_articles/<int:id>', endpoint='member_article')
-
 
 if __name__ == '__main__':
     app.run(port=5555, debug=True)
